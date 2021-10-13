@@ -2,6 +2,11 @@ package com.ttjjttjj.myapplication
 
 import android.content.ComponentName
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
+import android.net.Uri
+import android.os.Bundle
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.session.MediaControllerCompat
 import androidx.lifecycle.LiveData
@@ -88,11 +93,6 @@ class MainViewModel : ViewModel() {
     fun createMediaControllerCompat(){
         mMediaControllerCompat = MediaControllerCompat(mContext, mMediaBrowserCompat.sessionToken)
         mMediaControllerCompat.registerCallback(mMediaControllerCallback)
-        // 从服务端获取的数据中，更新UI
-//        if (mMediaControllerCompat.metadata != null) {
-//            updatePlayMetadata(mMediaControllerCompat.metadata)
-//            updatePlayState(mMediaControllerCompat.playbackState)
-//        }
     }
 
     private lateinit var mMediaControllerCallback : MediaControllerCompat.Callback
@@ -100,12 +100,36 @@ class MainViewModel : ViewModel() {
         this.mMediaControllerCallback = callback
     }
 
+    /**
+     * 选择列表数据去播放
+     * @param position
+     * @param bundle
+     */
+    fun setMediaControllerCompat(position: Int) {
+        val bundle = Bundle()
+        bundle.putInt("playPosition", position)
+        mMediaControllerCompat.transportControls.playFromUri(
+            rawToUri(Integer.valueOf(mListData.value?.get(position)?.mediaId)),
+            bundle
+        )
+    }
 
+    private fun rawToUri(id: Int): Uri? {
+        val uriStr = "android.resource://${mContext.packageName}/$id"
+        return Uri.parse(uriStr)
+    }
 
-
-
-
-
-
-
+    /**
+     * 加载音乐封面
+     */
+    fun loadCover(position: Int) : Bitmap? {
+        val uriStr = rawToUri(Integer.valueOf(mListData.value?.get(position)?.mediaId))
+        if (uriStr != null) {
+            val mediaMetadataRetriever = MediaMetadataRetriever()
+            mediaMetadataRetriever.setDataSource(mContext, uriStr)
+            val cover = mediaMetadataRetriever.embeddedPicture
+            return BitmapFactory.decodeByteArray(cover, 0, cover?.size!!)
+        }
+        return null
+    }
 }

@@ -1,6 +1,7 @@
 package com.ttjjttjj.myapplication
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
@@ -10,10 +11,12 @@ import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import android.widget.SeekBar
 import androidx.appcompat.app.AppCompatDialog
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -22,12 +25,11 @@ import com.ttjjttjj.mybaselib.base.activity.BAViewBindingByReflect
 import com.ttjjttjj.mybaselib.ext.extensions.logd
 import com.ttjjttjj.mybaselib.ext.extensions.loge
 import com.ttjjttjj.mybaselib.ext.util.DialogUtil
+import com.ttjjttjj.mybaselib.ext.util.TimeUtils
 import com.ttjjttjj.mymediasession.shared.MyMusicService
-
 
 /**
  * 音乐播放页面
- *
  * @author tj
  */
 class MainActivity : BAViewBindingByReflect<ActivityMainBinding, MainViewModel>(), View.OnClickListener{
@@ -43,6 +45,19 @@ class MainActivity : BAViewBindingByReflect<ActivityMainBinding, MainViewModel>(
         viewBinding.btnPre.setOnClickListener(this)
         viewBinding.btnNext.setOnClickListener(this)
         viewBinding.imageBtn.setOnClickListener(this)
+        viewBinding.seekBar.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+            }
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                "seekBar ---> onStopTrackingTouch.progress = ${seekBar!!.progress}".logd()
+                viewModel.mMediaControllerCompat.transportControls.seekTo(seekBar!!.progress.toLong())
+            }
+
+        })
     }
 
     override fun initData() {
@@ -54,7 +69,6 @@ class MainActivity : BAViewBindingByReflect<ActivityMainBinding, MainViewModel>(
     }
 
     override fun initObserve() {
-
         viewModel.mListData.observe(this, {
             for (item in it) {
                 "observe - ${item.description.title.toString()}".logd()
@@ -82,7 +96,7 @@ class MainActivity : BAViewBindingByReflect<ActivityMainBinding, MainViewModel>(
                 }
                 mAdapter.setSelected(mSelectedPosition)
                 mAdapter.notifyDataSetChanged()
-                loadCover(mSelectedPosition)
+                viewBinding.ivAlbumIcon.setImageBitmap(viewModel.loadCover(mSelectedPosition))
             }
             R.id.btn_next -> {
                 viewModel.mMediaControllerCompat.transportControls.skipToNext()
@@ -93,28 +107,9 @@ class MainActivity : BAViewBindingByReflect<ActivityMainBinding, MainViewModel>(
                 }
                 mAdapter.setSelected(mSelectedPosition)
                 mAdapter.notifyDataSetChanged()
-                loadCover(mSelectedPosition)
+                viewBinding.ivAlbumIcon.setImageBitmap(viewModel.loadCover(mSelectedPosition))
             }
         }
-    }
-
-    /**
-     * 选择列表数据去播放
-     * @param position
-     * @param bundle
-     */
-    private fun setMediaControllerCompat(position: Int) {
-        val bundle = Bundle()
-        bundle.putInt("playPosition", position)
-        viewModel.mMediaControllerCompat.transportControls.playFromUri(
-            rawToUri(Integer.valueOf(viewModel.mListData.value?.get(position)?.mediaId)),
-            bundle
-        )
-    }
-
-    private fun rawToUri(id: Int): Uri? {
-        val uriStr = "android.resource://$packageName/$id"
-        return Uri.parse(uriStr)
     }
 
     /**
@@ -161,6 +156,9 @@ class MainActivity : BAViewBindingByReflect<ActivityMainBinding, MainViewModel>(
         }
     }
 
+    /**
+     * 更新UI按钮状态
+     */
     private fun updatePlayState(state: PlaybackStateCompat?) {
         if (state == null) {
             return
@@ -181,6 +179,9 @@ class MainActivity : BAViewBindingByReflect<ActivityMainBinding, MainViewModel>(
         }
     }
 
+    /**
+     * 更新UI文本
+     */
     private fun updatePlayMetadata(metadata: MediaMetadataCompat?) {
         if (metadata == null) {
             return
@@ -189,7 +190,7 @@ class MainActivity : BAViewBindingByReflect<ActivityMainBinding, MainViewModel>(
         val duration = metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION)
         if (duration > 1) {
             viewBinding.seekBar.max = duration.toInt()
-            viewBinding.tvTextDuration.text = setDurationTime(duration)
+            viewBinding.tvTextDuration.text = TimeUtils.setTimeByZero(duration)
             isSetMax = true
             "ui duration : $duration".loge()
         }
@@ -218,7 +219,7 @@ class MainActivity : BAViewBindingByReflect<ActivityMainBinding, MainViewModel>(
                     mHandler?.post {
                         if (isSetMax) {
                             viewBinding.seekBar.progress = position.toInt()
-                            viewBinding.tvTextProgress.text = setProgressTime(position)
+                            viewBinding.tvTextProgress.text = TimeUtils.setTimeByZero(position)
                             "setProgress: $position".logd()
                         }
                     }
@@ -230,26 +231,8 @@ class MainActivity : BAViewBindingByReflect<ActivityMainBinding, MainViewModel>(
     }
 
     /**
-     * 秒转化为00:00形式
-     * @param curPosition
+     * 展示播放列表的dialog
      */
-    private fun setProgressTime(curPosition: Long): String {
-        val cm = curPosition / 1000 / 60
-        val cs = curPosition / 1000 % 60
-        val builder = StringBuilder()
-        return builder.append(cm / 10).append(cm % 10).append(":")
-            .append(cs / 10).append(cs % 10).toString()
-    }
-
-    private fun setDurationTime(maxLen: Long): String {
-        val mm = maxLen / 1000 / 60
-        val ms = maxLen / 1000 % 60
-        val builder = StringBuilder()
-        return builder.append(mm / 10).append(mm % 10).append(":")
-            .append(ms / 10).append(ms % 10).toString()
-    }
-
-
     private fun createDialog(size:Int) {
         mDialog = AppCompatDialog(this)
         mDialog.setTitle("PlayList($size)")
@@ -260,16 +243,16 @@ class MainActivity : BAViewBindingByReflect<ActivityMainBinding, MainViewModel>(
         mAdapter = MyAdapter(viewModel.mListData.value as MutableList<MediaBrowserCompat.MediaItem>)
         recyclerView.adapter = mAdapter
         /**
-         * 音乐播放列表，选择
+         * 音乐播放列表，点击选择
          */
         mAdapter.setOnItemClickListener { _, _, position ->
             mSelectedPosition = position
-            setMediaControllerCompat(position)
+            viewModel.setMediaControllerCompat(position)
             mAdapter.setSelected(position)
             mAdapter.notifyDataSetChanged()
             mDialog.dismiss()
 
-            loadCover(position)
+            viewBinding.ivAlbumIcon.setImageBitmap(viewModel.loadCover(mSelectedPosition))
         }
 
         DialogUtil.setWith(mDialog, WindowManager.LayoutParams.MATCH_PARENT)
@@ -278,20 +261,4 @@ class MainActivity : BAViewBindingByReflect<ActivityMainBinding, MainViewModel>(
         DialogUtil.setAnimations(mDialog, R.style.BottomDialogTransition)
         mDialog.setCanceledOnTouchOutside(true)
     }
-
-
-    /**
-     * 加载音乐封面
-     */
-    private fun loadCover(position: Int) {
-        val uriStr = rawToUri(Integer.valueOf(viewModel.mListData.value?.get(position)?.mediaId))
-        if (uriStr != null) {
-            val mediaMetadataRetriever = MediaMetadataRetriever()
-            mediaMetadataRetriever.setDataSource(mContext, uriStr)
-            val cover = mediaMetadataRetriever.embeddedPicture
-            val bitmap = BitmapFactory.decodeByteArray(cover, 0, cover?.size!!)
-            viewBinding.ivAlbumIcon.setImageBitmap(bitmap)
-        }
-    }
-
 }
