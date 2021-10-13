@@ -90,24 +90,20 @@ class MyMusicService : MediaBrowserServiceCompat() {
      */
     private fun createMediaSessionCompat() {
 
-        mSession = MediaSessionCompat(this, "MyMusicService")
+        mSession = MediaSessionCompat(this, "MyMusicService").apply {
+            // 设置token后会触发MediaBrowserCompat.ConnectionCallback的回调方法
+            // 表示MediaBrowser与MediaBrowserService连接成功
+            setSessionToken(sessionToken)
+            // 回调
+            setCallback(mSessionCallback)
 
-        // 设置token后会触发MediaBrowserCompat.ConnectionCallback的回调方法
-        // 表示MediaBrowser与MediaBrowserService连接成功
-        sessionToken = mSession.sessionToken
-
-        // 回调
-        mSession.setCallback(mSessionCallback)
-        mSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS
-                or MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS)
-
-        // 封装了各种播放状态
-        mPlaybackStateCompat = PlaybackStateCompat.Builder()
-            .setState(PlaybackStateCompat.STATE_NONE, 0, 1.0f)
-            .setActions(getAvailableActions(PlaybackStateCompat.STATE_NONE))
-            .build()
-        mSession.setPlaybackState(mPlaybackStateCompat)
-        mSession.isActive = true
+            // 封装了各种播放状态
+            mPlaybackStateCompat = PlaybackStateCompat.Builder()
+                .setState(PlaybackStateCompat.STATE_NONE, 0, 1.0f)
+                .setActions(getAvailableActions(PlaybackStateCompat.STATE_NONE))
+                .build()
+            setPlaybackState(mPlaybackStateCompat)
+        }
     }
 
     /**
