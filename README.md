@@ -1,6 +1,6 @@
 # MediaSession_Music
 
-该项目主要是根据MediaSession框架，开发了一个音乐应用的DEMO， 使用kotlin+MMVM的架构开发。
+该项目主要是根据MediaSession框架，开发了一个音乐应用的DEMO， 使用kotlin+MVVM的架构开发。
 
 ### 链接
 学习中总结了两篇文章
